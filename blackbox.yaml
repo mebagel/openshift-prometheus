@@ -1,0 +1,94 @@
+apiVersion: v1
+kind: List
+items:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      prometheus.io/path: /metrics
+      prometheus.io/scheme: http
+      prometheus.io/scrape: "true"
+    name: blackbox
+    labels:
+      name: blackbox
+  spec:
+    ports:
+      - port: 80
+        targetPort: blackbox
+        protocol: TCP
+    selector:
+      app: blackbox
+
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: blackbox-config
+  data:
+    config.yml: |
+     modules:
+       http_2xx:
+         prober: http
+         http:
+           tls_config:
+             insecure_skip_verify: true
+       http_post_2xx:
+         prober: http
+         http:
+           method: POST
+       tcp_connect:
+         prober: tcp
+       pop3s_banner:
+         prober: tcp
+         tcp:
+           query_response:
+           - expect: "^+OK"
+           tls: true
+           tls_config:
+             insecure_skip_verify: false
+       ssh_banner:
+         prober: tcp
+         tcp:
+           query_response:
+           - expect: "^SSH-2.0-"
+       irc_banner:
+         prober: tcp
+         tcp:
+           query_response:
+           - send: "NICK prober"
+           - send: "USER prober prober prober :prober"
+           - expect: "PING :([^ ]+)"
+             send: "PONG ${1}"
+           - expect: "^:[^ ]+ 001"
+       icmp:
+         prober: icmp
+
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    name: blackbox
+  spec:
+    selector:
+      matchLabels:
+        app: blackbox
+    template:
+      metadata:
+        name: blackbox
+        labels:
+          app: blackbox
+      spec:
+        nodeSelector:
+          "node-role.kubernetes.io/infra": "true"
+        containers:
+        - image: quay.io/prometheus/blackbox-exporter:v0.12.0
+          name: blackbox
+          ports:
+          - containerPort: 9115
+            name: blackbox
+          volumeMounts:
+          - mountPath: /etc/blackbox_exporter/
+            name: blackbox-config
+        volumes:
+        - name: blackbox-config
+          configMap:
+            defaultMode: 420
+            name: blackbox-config

@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    k8s-app: application-metrics-amq-tests
+  name: application-metrics-amq-tests
+spec:
+  endpoints:
+  - honorLabels: true
+    interval: 30s
+    scheme: http
+    targetPort: 9779
+  namespaceSelector:
+    matchNames:
+    - amq-tests
+  selector:
+    matchLabels:
+      scrape: prometheus

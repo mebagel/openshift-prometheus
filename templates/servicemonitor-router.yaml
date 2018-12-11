@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    k8s-app: router-metrics
+  name: router-metrics
+  namespace: openshift-monitoring
+spec:
+  endpoints:
+  - honorLabels: true
+    bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    interval: 30s
+    scheme: https
+    port: "1936-tcp"
+    tlsConfig:
+      caFile: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
+      serverName: router.default.svc
+      insecureSkipVerify: true
+  namespaceSelector:
+    matchNames:
+    - default
+  selector:
+    matchLabels:
+      router: router

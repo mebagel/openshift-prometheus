@@ -1,0 +1,30 @@
+global:
+  resolve_timeout: 5m
+  smtp_from: prometheus@example.com
+  smtp_smarthost: server:25
+route:
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: default
+  group_by:
+  - alertname
+  routes:
+  - receiver: deadmansswitch
+    match:
+      alertname: DeadMansSwitch
+    repeat_interval: 5m
+  - receiver: default
+receivers:
+- name: default
+  webhook_configs:
+    - url: http://webhook.example.com/
+    - url: http://localhost:9099/topics/alerts
+  email_configs:
+    - send_resolved: true
+      to: mail@example.com, mail2@example.com
+      headers:
+        Subject: '{{ template "email.default.subject" . }}'
+      html: '{{ template "email.default.html" . }}'
+      require_tls: false
+- name: deadmansswitch

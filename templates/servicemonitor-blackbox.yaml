@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    k8s-app: blackbox-metrics
+  name: blackbox-metrics
+  namespace: openshift-monitoring
+spec:
+  endpoints:
+  - interval: 30s
+    scheme: http
+  namespaceSelector:
+    matchNames:
+    - openshift-monitoring
+  selector:
+    matchLabels:
+      name: blackbox

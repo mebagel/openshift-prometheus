@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    k8s-app: application-metrics-rest-test
+  name: application-metrics-rest-test
+spec:
+  endpoints:
+  - honorLabels: true
+    interval: 30s
+    scheme: http
+  namespaceSelector:
+    matchNames:
+    - rest-test
+  selector:
+    matchLabels:
+      scrape: prometheus
