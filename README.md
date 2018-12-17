@@ -97,6 +97,12 @@ oc label svc custom-broker-amq-tcp scrape=prometheus
 oc apply -f templates/servicemonitor-application-amq-tests.yaml -n openshift-monitoring
 ```
 
+### Running on ovs-networkpolicy SDN
+Allow Prometheus to scrape your metrics endpoints. Create the network-policy.
+```
+oc create -f templates/networkpolicy.yaml
+```
+
 ### Known Issues
 - add blackbox exporter => https://github.com/coreos/prometheus-operator/issues/1201 not yet implemented
 - Application Montoring scrapes always all endpoint ips -> Annotations not yet supported: https://github.com/coreos/prometheus-operator/issues/1547
