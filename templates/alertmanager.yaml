@@ -24,7 +24,5 @@ receivers:
     - send_resolved: true
       to: mail@example.com, mail2@example.com
       headers:
-        Subject: '{{ template "email.default.subject" . }}'
-      html: '{{ template "email.default.html" . }}'
       require_tls: false
 - name: deadmansswitch

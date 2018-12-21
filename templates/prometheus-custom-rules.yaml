@@ -282,7 +282,7 @@ spec:
         severity: "HIGH"
         message: "{{$labels.pod_name}}: running on same node"
     
-    ## Blackbox Exporter?
+    ## TODO: Add blackbox exporter
     - alert: registry_http_auth
       expr: probe_http_status_code{instance="https://docker-registry.default.svc.cluster.local:5000/v2"} != 401
       for: 15m

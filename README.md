@@ -15,9 +15,9 @@ openshift_cluster_monitoring_operator_alertmanager_storage_class_name=[tbd]
 openshift_cluster_monitoring_operator_alertmanager_config=[tbd]
 ```
 
-Default retention
+Set retention time
 ```
-        - --storage.tsdb.retention=15d
+oc patch prometheus k8s -p '{"spec":{"retention":"20d"}}' --type='merge'
 ```
 
 Run the installer
@@ -29,10 +29,9 @@ ansible-playbook /usr/share/ansible/openshift-ansible/playbooks/openshift-monito
 Let Prometheus scrape service labels in different namespaces
 ```
 oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:openshift-monitoring:prometheus-k8s
-oc delete pod -l app=prometheus
 ``` 
 
-### Add custom ruleset and scrape endpoints
+### Add custom ruleset
 ```
 oc apply -f templates/prometheus-custom-rules.yaml -n openshift-monitoring
 ```
@@ -55,11 +54,8 @@ oc apply -f templates/rolebinding_logging.yaml
 ```
 
 ## Alerting
-Inventory:
-```
-openshift_cluster_monitoring_operator_alertmanager_config: |+
-....
-```
+Configuring the alerting rules with the Red Hat Ansible playbooks.
+https://docs.openshift.com/container-platform/3.11/install_config/prometheus_cluster_monitoring.html#configuring-alertmanager
 
 By hand
 ```
@@ -98,19 +94,19 @@ oc apply -f templates/servicemonitor-application-amq-tests.yaml -n openshift-mon
 oc adm policy add-cluster-role-to-user cluster-monitoring-view [user]
 ```
 
-### Add metrics reader sa to access Prometheus metrics
+### Add metrics reader service account to access Prometheus metrics
 ```
 oc create sa prometheus-metrics-reader -n openshift-monitoring
 oc adm policy add-cluster-role-to-user cluster-monitoring-view -z prometheus-metrics-reader -n openshift-monitoring
 oc sa get-token prometheus-metrics-reader -n openshift-monitoring
 ```
 
-### OSE running on ovs-networkpolicy SDN
-Allow Prometheus to scrape your metrics endpoints. Create the network-policy.
+### Allow Prometheus to scrape your metrics endpoints (if using ovs-networkpolicy plugin)
+Create an additional network-policy.
 ```
 oc create -f templates/networkpolicy.yaml
 ```
 
 ## Known Issues
-- add blackbox exporter => https://github.com/coreos/prometheus-operator/issues/1201 not yet implemented
-- Application Montoring scrapes always all endpoint ips -> Annotations not yet supported: https://github.com/coreos/prometheus-operator/issues/1547
+- Add Blackbox exporter => https://github.com/coreos/prometheus-operator/issues/1201 not yet implemented
+- Application Monitoring scrapes always all endpoint IPs: https://github.com/coreos/prometheus-operator/issues/1547
