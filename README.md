@@ -15,14 +15,14 @@ openshift_cluster_monitoring_operator_alertmanager_storage_class_name=[tbd]
 openshift_cluster_monitoring_operator_alertmanager_config=[tbd]
 ```
 
-Set retention time
-```
-oc patch prometheus k8s -p '{"spec":{"retention":"20d"}}' --type='merge'
-```
-
 Run the installer
 ```
 ansible-playbook /usr/share/ansible/openshift-ansible/playbooks/openshift-monitoring/config.yml
+```
+
+Set retention time
+```
+oc patch prometheus k8s -p '{"spec":{"retention":"20d"}}' --type='merge'
 ```
 
 ## Prepare Prometheus
@@ -37,7 +37,12 @@ oc apply -f templates/prometheus-custom-rules.yaml -n openshift-monitoring
 ```
 
 ### Additional targets (etcd)
-https://docs.openshift.com/container-platform/3.11/install_config/prometheus_cluster_monitoring.html
+https://docs.openshift.com/container-platform/3.11/install_config/prometheus_cluster_monitoring.html#configuring-etcd-monitoring
+
+#### Bug OSE 3.11.53: Mount secret with certs manually
+```
+oc set volumes statefulset/prometheus-k8s --add --secret-name=kube-etcd-client-certs --mount-path=/etc/prometheus/secrets/kube-etcd-client-certs/
+```
 
 ### Additional targets (router)
 ```
@@ -61,7 +66,6 @@ By hand
 ```
 oc delete secret alertmanager-main
 oc create secret generic alertmanager-main --from-file=templates/alertmanager.yaml
-oc delete pod -l app=alertmanager
 ```
 
 ## Application Monitoring
