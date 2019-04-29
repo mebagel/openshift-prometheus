@@ -12,6 +12,7 @@ spec:
     rules:
     - alert: node_ntp_timestamp
       expr: abs(node_time_seconds - timestamp(node_time_seconds))  > 1
+      for: 10m
       annotations:
         severity: "HIGH"
         message: "{{$labels.instance}}: NTP out of sync (current value is: {{$value}})"
@@ -53,11 +54,6 @@ spec:
       annotations:
         severity: "HIGH"
         message: "{{$labels.namespace}}: {{$labels.persistentvolumeclaim}} is {{$labels.phase}}"
-    - alert: node_filesystem_free_pv_percent
-      expr: min by(device) (node_filesystem_free_bytes / node_filesystem_size_bytes{device!~"/dev.*pv.",device!~"/dev.*brick.*"} * 100) < 10
-      annotations:
-        severity: "HIGH"
-        message: "{{$labels.instance}}: Available Space on {{$labels.mountpoint}} (current value is: {{$value}})%"
 
     - alert: node_swap_enabled
       expr: node_memory_SwapTotal != 0
@@ -72,7 +68,7 @@ spec:
         message: "{{$labels.instance}}: Errors on {{$labels.mountpoint}} detected"
 
     - alert: node_cpu_load5
-      expr: max(node_load5)by (instance) > 8
+      expr: max(node_load5)by (instance) / count(node_cpu{mode="idle"}) by (instance) > 2
       for: 30m
       annotations:
         severity: "HIGH"
@@ -85,7 +81,7 @@ spec:
         message: "{{$labels.instance}}: Memory usage more than 90% (current value is: {{ $value }})%"
 
     - alert: node_procs_running
-      expr: max(node_procs_running) by (instance) > 100
+      expr: max(node_procs_running) by (instance)  / count(node_cpu{mode="idle"}) by (instance) > 100
       annotations:
         severity: "HIGH"
         message: "{{$labels.instance}}: More than 100 active processes running (current value is: {{ $value }})"
@@ -260,6 +256,13 @@ spec:
         severity: "HIGH"
         message: "{{$labels.node}}: More than 90% memory used"
 
+    - alert: container_cpu_usage_seconds_over_5min_logging
+      expr: sum(rate(container_cpu_usage_seconds_total{namespace="openshift-logging"}[5m])) by (pod_name, kubernetes_io_hostname) > 2
+      for: 10m
+      annotations:
+        severity: "HIGH"
+        message: "High CPU usage of {{$labels.pod_name}} in namespace {{$labels.namespace}} on {{$labels.kubernetes_io_hostname}}. Current value: {{ $value }}%"
+
     - alert: logging_es_os_load_average
       expr: es_os_load_average > 5
       for: 1h
@@ -302,34 +305,72 @@ spec:
   - name: custom_container_monitoring
     rules:
     - alert: container_cpu_usage_seconds_over_5min_default
-      expr: rate(container_cpu_usage_seconds_total{namespace="default"}[5m]) > 0.5
+      expr: sum(rate(container_cpu_usage_seconds_total{namespace="default"}[5m])) by (pod_name, kubernetes_io_hostname) > 0.5
       annotations:
         severity: "HIGH"
-        message: "High CPU usage in {{$labels.namespace}} of {{$labels.pod_name}} {{ $value }}"
+        message: "High CPU usage of {{$labels.pod_name}} in namespace {{$labels.namespace}} on {{$labels.kubernetes_io_hostname}}. Current value: {{ $value }}%"
 
     - alert: container_cpu_usage_seconds_over_5min_openshift
-      expr: rate(container_cpu_usage_seconds_total{namespace=~"openshift-.*"}[5m]) > 1
+      expr: sum(rate(container_cpu_usage_seconds_total{namespace=~"openshift-.*", namespace!="openshift-logging"}[5m])) by (pod_name, kubernetes_io_hostname) > 1
+      for: 10m
       annotations:
         severity: "HIGH"
         message: "High CPU usage in {{$labels.namespace}} of {{$labels.pod_name}} {{ $value }}"
 
-    - alert: container_mem_usage_default_mb
-      expr: container_memory_max_usage_bytes{namespace="default"}/1024/1024 > 2000
+    - alert: container_cpu_usage_seconds_over_5min_glusterfs
+      expr: sum by(pod_name, kubernetes_io_hostname) (rate(container_cpu_usage_seconds_total{namespace="glusterfs", container_name="glusterfs"}[5m])) > 1.5
+      for: 30m
       annotations:
         severity: "HIGH"
-        message: "Memory usage more than 100MB of {{$labels.pod_name}} in {{$labels.namespace}} project"
+        message: "High CPU usage of {{$labels.pod_name}} in namespace {{$labels.namespace}} on {{$labels.kubernetes_io_hostname}}. Current value: {{ $value }}%.  Gluster Service likely not working correctly."
 
-    - alert: container_mem_usage_openshift_infra_hawkular_cassandra_mb
-      expr: container_memory_max_usage_bytes{namespace="openshift-infra",pod_name=~"hawkular-cassandra.*"}/1024/1024 > 1950
+    - alert: container_memory_working_set_default_registry
+      expr: sum(container_memory_working_set_bytes{namespace="default", container_name="registry"} / 1024^3 ) by (pod_name, kubernetes_io_hostname) > 1
+      for: 10m
       annotations:
         severity: "HIGH"
-        message: "Memory usage more than 1950MB of {{$labels.pod_name}} in {{$labels.namespace}} project"
+        message: "Memory usage of {{$labels.pod_name}} in namespace {{$labels.namespace}} on {{$labels.kubernetes_io_hostname}} over 1GiB for 10min"
 
-    - alert: container_mem_usage_openshift_infra_hawkular_metrics_mb
-      expr: container_memory_max_usage_bytes{namespace="openshift-infra",pod_name=~"hawkular-metrics.*"}/1024/1024 > 2400
+    - alert: container_memory_working_set_default_router
+      expr: sum(container_memory_working_set_bytes{namespace="default", container_name="router"} / 1024^3 ) by (pod_name, kubernetes_io_hostname) > 1.5
+      for: 10m
       annotations:
         severity: "HIGH"
-        message: "Memory usage more than 2400MB of {{$labels.pod_name}} in {{$labels.namespace}} project"
+        message: "Memory usage of {{$labels.pod_name}} in namespace {{$labels.namespace}} on {{$labels.kubernetes_io_hostname}} over 1GiB for 10min"
+
+    - alert: container_memory_working_set_logging
+      expr: sum(container_memory_working_set_bytes{namespace="logging"}) by (pod_name, namespace, kubernetes_io_hostname) / sum(label_join(label_join(kube_pod_container_resource_limits_memory_bytes{namespace="logging"}, "pod_name", "", "pod"), "kubernetes_io_hostname", "", "node")) by (pod_name, namespace, kubernetes_io_hostname) > 0.75
+      for: 5m
+      annotations:
+        severity: "HIGH"
+        message: "Memory usage of {{$labels.pod_name}} in namespace {{$labels.namespace}} on {{$labels.kubernetes_io_hostname}} over 75% of limit for 5min"
+
+    - alert: container_memory_working_set_openshift-metrics
+      expr: sum(container_memory_working_set_bytes{namespace="openshift-metrics"}) by (pod_name, namespace, kubernetes_io_hostname) / sum(label_join(label_join(kube_pod_container_resource_limits_memory_bytes{namespace="openshift-metrics"}, "pod_name", "", "pod"), "kubernetes_io_hostname", "", "node")) by (pod_name, namespace, kubernetes_io_hostname) > 0.9
+      for: 5m
+      annotations:
+        severity: "HIGH"
+        message: "Memory usage of {{$labels.pod_name}} in namespace {{$labels.namespace}} on {{$labels.kubernetes_io_hostname}} over 90% of limit for 5min"
+
+    - alert: container_memory_working_set_glusterfs
+      expr: sum(container_memory_working_set_bytes{namespace="glusterfs"}) by (pod_name, namespace, kubernetes_io_hostname) / sum(label_join(label_join(kube_pod_container_resource_limits_memory_bytes{namespace="glusterfs"}, "pod_name", "", "pod"), "kubernetes_io_hostname", "", "node")) by (pod_name, namespace, kubernetes_io_hostname) > 0.85
+      for: 30m
+      annotations:
+        severity: "HIGH"
+        message: "Memory usage of {{$labels.pod_name}} in namespace {{$labels.namespace}} on {{$labels.kubernetes_io_hostname}} over 85% of limit for 30min"
+
+    - alert: container_memory_working_set_openshift-infra
+      expr: sum(container_memory_working_set_bytes{namespace="openshift-infra"}) by (pod_name, namespace, kubernetes_io_hostname) / sum(label_join(label_join(kube_pod_container_resource_limits_memory_bytes{namespace="openshift-infra"}, "pod_name", "", "pod"), "kubernetes_io_hostname", "", "node")) by (pod_name, namespace, kubernetes_io_hostname) > 0.8
+      for: 30m
+      annotations:
+        severity: "HIGH"
+        message: "Memory usage of {{$labels.pod_name}} in namespace {{$labels.namespace}} on {{$labels.kubernetes_io_hostname}} over 80% of limit for 30min"
+
+    - alert: pod_restart_count_non_infrastructure
+      expr: kube_pod_container_status_restarts_total{namespace!~"openshift-.*|logging.*"} - (kube_pod_container_status_restarts_total{namespace!~"openshift-.*|logging.*"} offset 10m) > 1
+      annotations:
+        severity: "HIGH"
+        message: "{{$labels.pod_name}} in namespace {{$labels.namespace}} restarted twice during the last 10 minutes, constant restarting might affect other projects"
 
     - alert: pod_restart_count
       expr: max_over_time(kube_pod_container_status_restarts_total[1h]) - min_over_time(kube_pod_container_status_restarts_total[1h]) > 1
