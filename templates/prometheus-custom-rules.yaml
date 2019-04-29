@@ -79,10 +79,10 @@ spec:
         message: "{{$labels.instance}}: Load higher than (current value is: {{ $value }})"
 
     - alert: node_memory_free_percent
-      expr: ((node_memory_MemTotal_bytes-node_memory_MemFree_bytes-node_memory_Cached_bytes)/node_memory_MemTotal_bytes)*100 > 90
+      expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 90
       annotations:
         severity: "HIGH"
-        message: "{{$labels.instance}}: Memory usage more than 85% (current value is: {{ $value }})%"
+        message: "{{$labels.instance}}: Memory usage more than 90% (current value is: {{ $value }})%"
 
     - alert: node_procs_running
       expr: max(node_procs_running) by (instance) > 100
