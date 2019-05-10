@@ -332,11 +332,11 @@ spec:
         message: "Memory usage of {{$labels.pod_name}} in namespace {{$labels.namespace}} on {{$labels.kubernetes_io_hostname}} over 1GiB for 10min"
 
     - alert: container_memory_working_set_default_router
-      expr: sum(container_memory_working_set_bytes{namespace="default", container_name="router"} / 1024^3 ) by (pod_name, kubernetes_io_hostname) > 1.5
+      expr: sum(container_memory_working_set_bytes{namespace="default", container_name="router"} / 1024^3 ) by (pod_name, kubernetes_io_hostname) > 2
       for: 10m
       annotations:
         severity: "HIGH"
-        message: "Memory usage of {{$labels.pod_name}} in namespace {{$labels.namespace}} on {{$labels.kubernetes_io_hostname}} over 1GiB for 10min"
+        message: "Memory usage of {{$labels.pod_name}} in namespace {{$labels.namespace}} on {{$labels.kubernetes_io_hostname}} over 2GiB for 10min"
 
     - alert: container_memory_working_set_logging
       expr: sum(container_memory_working_set_bytes{namespace="logging"}) by (pod_name, namespace, kubernetes_io_hostname) / sum(label_join(label_join(kube_pod_container_resource_limits_memory_bytes{namespace="logging"}, "pod_name", "", "pod"), "kubernetes_io_hostname", "", "node")) by (pod_name, namespace, kubernetes_io_hostname) > 0.75
@@ -368,9 +368,10 @@ spec:
 
     - alert: pod_restart_count_non_infrastructure
       expr: kube_pod_container_status_restarts_total{namespace!~"openshift-.*|logging.*"} - (kube_pod_container_status_restarts_total{namespace!~"openshift-.*|logging.*"} offset 10m) > 1
+      for: 24h
       annotations:
         severity: "HIGH"
-        message: "{{$labels.pod_name}} in namespace {{$labels.namespace}} restarted twice during the last 10 minutes, constant restarting might affect other projects"
+        message: "{{$labels.pod_name}} in namespace {{$labels.namespace}} restarted moren than once every 10 minutes over the last 24h, constant restarting might affect other projects"
 
     - alert: pod_restart_count
       expr: max_over_time(kube_pod_container_status_restarts_total[1h]) - min_over_time(kube_pod_container_status_restarts_total[1h]) > 1

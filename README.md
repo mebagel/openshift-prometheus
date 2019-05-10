@@ -33,7 +33,7 @@ oc adm policy add-cluster-role-to-user cluster-reader system:serviceaccount:open
 
 ### Add custom ruleset
 ```
-oc apply -f templates/prometheus-custom-rules.yaml -n openshift-monitoring
+oc apply -f templates/prometheus-k8s-custom-rules.yaml -n openshift-monitoring
 ```
 
 ### Additional targets (etcd)
