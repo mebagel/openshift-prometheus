@@ -285,23 +285,6 @@ spec:
         severity: "HIGH"
         message: "{{$labels.pod_name}}: running on same node"
     
-    ## TODO: Add blackbox exporter
-    - alert: registry_http_auth
-      expr: probe_http_status_code{instance="https://docker-registry.default.svc.cluster.local:5000/v2"} != 401
-      for: 15m
-      annotations:
-        severity: "HIGH"
-        message: "Docker-registry internal anonymous access denied"
-
-  - name: custom_hawkular_monitoring
-    rules:
-    - alert: probe_http_status_metrics
-      expr: probe_http_status_code{instance="https://metrics.ospa.pnet.ch/hawkular/metrics"} != 200
-      for: 15m
-      annotations:
-        severity: "HIGH"
-        message: "{{$labels.instance}}: unreachable "
-
   - name: custom_container_monitoring
     rules:
     - alert: container_cpu_usage_seconds_over_5min_default
@@ -380,30 +363,9 @@ spec:
         severity: "HIGH"
         message: "{{$labels.pod_name}}: Restarting"
 
-  - name: custom_http_monitoring
-    rules:
-    - alert: http_probe_dns_lookup_time_seconds
-      expr: probe_dns_lookup_time_seconds > 10
-      annotations:
-        severity: "HIGH"
-        message: "{{$labels.instance}}: processing dns lookups takes {{ $value }} seconds"
-
     - alert: http_duration_seconds_processing
       expr: http_request_duration_microseconds/1000/1000 > 10
       for: 15m
       annotations:
         severity: "HIGH"
         message: "{{$labels.instance}}: http checks takes {{ $value }} seconds"
-
-    - alert: http_probe_ssl_earliest_cert_expiry_days
-      expr: (probe_ssl_earliest_cert_expiry - time())/60/60/24 < 20
-      annotations:
-        severity: "HIGH"
-        message: "{{$labels.instance}} SSL cert expires in {{ $value }} days"
-
-    - alert: http_probe_http_status_code
-      expr: probe_http_status_code == 0
-      for: 15m
-      annotations:
-        severity: "HIGH"
-        message: "{{$labels.instance}} not available"
